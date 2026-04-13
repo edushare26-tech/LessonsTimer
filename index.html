@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Таймер Уроків</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;
+            background-color: var(--bg); color: var(--text); overflow: hidden;
+        }
+        .app-container {
+            background: var(--card); width: 85%; max-width: 350px; padding: 40px 20px;
+            border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center;
+        }
+        .status { font-size: 1.1rem; opacity: 0.8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .timer { font-size: 4rem; font-weight: 800; color: var(--accent); margin-bottom: 20px; font-variant-numeric: tabular-nums; }
+        .details { font-size: 1rem; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 15px; }
+        .btn-sound {
+            margin-top: 30px; background: var(--accent); color: var(--bg); border: none;
+            padding: 15px 30px; border-radius: 50px; font-weight: bold; cursor: pointer; width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div id="status" class="status">Завантаження</div>
+    <div id="timer" class="timer">00:00:00</div>
+    <div id="info" class="details">Будь ласка, зачекайте...</div>
+    <button class="btn-sound" onclick="activateAudio()">ВКЛЮЧИТИ ЗВУК</button>
+</div>
+
+<script>
+    const schedule = [
+        { name: "1 уроку", start: "08:30", end: "09:15" },
+        { name: "2 уроку", start: "09:25", end: "10:10" },
+        { name: "3 уроку", start: "10:20", end: "11:05" },
+        { name: "4 уроку", start: "11:25", end: "12:10" },
+        { name: "5 уроку", start: "12:20", end: "13:05" },
+        { name: "6 уроку", start: "13:15", end: "14:00" },
+        { name: "7 уроку", start: "14:05", end: "14:50" },
+        { name: "8 уроку", start: "14:55", end: "15:40" }
+    ];
+    let audioCtx = null;
+    function activateAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        playBeep();
+        document.querySelector('.btn-sound').style.display = 'none';
+    }
+
+    function playBeep() {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 660; 
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.start(); 
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    let lastState = null;
+
+    function update() {
+        const now = new Date();
+        let target = null, label = "Уроки завершено", info = "Гарного відпочинку!", state = "done";
+
+        for (let i = 0; i < schedule.length; i++) {
+            const s = new Date(now.toDateString() + ' ' + schedule[i].start);
+            const e = new Date(now.toDateString() + ' ' + schedule[i].end);
+            if (now < s) {
+                label = "До початку " + schedule[i].name; target = s; info = "Початок о " + schedule[i].start;
+                state = "break-" + i; break;
+            } else if (now >= s && now <= e) {
+                label = "До закінчення " + schedule[i].name; target = e; info = "Закінчення о " + schedule[i].end;
+                state = "lesson-" + i; break;
+            }
+        }
+
+        if (lastState && lastState !== state) playBeep();
+        lastState = state;
+
+        if (target) {
+            const diff = target - now;
+            const h = Math.floor(diff/3600000).toString().padStart(2,'0');
+            const m = Math.floor((diff/60000)%60).toString().padStart(2,'0');
+            const s = Math.floor((diff/1000)%60).toString().padStart(2,'0');
+            document.getElementById('timer').innerText = `${h}:${m}:${s}`;
+        } else {
+            document.getElementById('timer').innerText = "00:00:00";
+        }
+        document.getElementById('status').innerText = label;
+        document.getElementById('info').innerText = info;
+    }
+
+    setInterval(update, 1000);
+    update();
+</script>
+</body>
+</html>
